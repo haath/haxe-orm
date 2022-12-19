@@ -1,0 +1,8 @@
+
+--class-path src
+--class-path src_run
+--main run.Main
+
+-D no-deprecation-warnings
+
+--neko run.n
