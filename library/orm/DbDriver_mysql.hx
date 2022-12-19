@@ -10,17 +10,17 @@ import orm.DbDriver;
 class DbDriver_mysql implements DbDriver
 {
 	static inline var renewTimeoutSeconds = 120;
-	
+
 	var host : String;
 	var user : String;
 	var pass : String;
 	var database : String;
 	var port : Int;
-	
+
 	var connection : Connection;
-	
+
 	var lastAccessTime = 0.0;
-	
+
 	public function new(dbparams:String) : Void
     {
 		var re = new EReg('^([_a-zA-Z0-9]+)\\:(.+?)@([-_.a-zA-Z0-9]+)(?:[:](\\d+))?/([-_a-zA-Z0-9]+)$', '');
@@ -28,16 +28,16 @@ class DbDriver_mysql implements DbDriver
 		{
 			throw new Exception("Connection string invalid format.");
 		}
-		
+
 		this.host = re.matched(3);
 		this.user = re.matched(1);
 		this.pass = re.matched(2);
 		this.database = re.matched(5);
 		this.port = re.matched(4) != null && re.matched(4) != "" ? Std.parseInt(re.matched(4)) : 0;
-		
+
 		renew();
     }
-	
+
 	function renew()
 	{
 		if (Date.now().getTime() - lastAccessTime > renewTimeoutSeconds * 1000)
@@ -53,7 +53,7 @@ class DbDriver_mysql implements DbDriver
 					close();
 				}
 			}
-			
+
 			if (connection == null)
 			{
 				connection = Mysql.connect( { host:host, user:user, pass:pass, database:database, port:port != 0 ? port : 3306, socket:null } );
@@ -63,14 +63,14 @@ class DbDriver_mysql implements DbDriver
 				connection.request("set collation_connection='utf8_general_ci'");
 			}
 		}
-		
+
 		lastAccessTime = Date.now().getTime();
 	}
 
     public function query(sql:String) : ResultSet
     {
 		renew();
-		
+
 		#if php
 		var r = connection.request(sql);
 		var errno : Dynamic = untyped __call__("mysql_errno");
@@ -91,13 +91,13 @@ class DbDriver_mysql implements DbDriver
 		return r;
 		#end
     }
-	
+
 	public function close() : Void
 	{
 		try { connection.close(); } catch (_:Dynamic) { }
 		connection = null;
 	}
-	
+
     public function getTables() : Array<String>
     {
         var r : Array<String> = [];
@@ -110,7 +110,7 @@ class DbDriver_mysql implements DbDriver
         return r;
     }
 
-	
+
 	public function getFields(table:String) : Array<DbTableFieldData>
     {
         var r = new Array<DbTableFieldData>();
@@ -134,32 +134,32 @@ class DbDriver_mysql implements DbDriver
 		switch (Type.typeof(v))
         {
             case ValueType.TClass(cls):
-                if (Std.is(v, String))
+                if (Std.isOfType(v, String))
                 {
 					return connection.quote(v);
                 }
                 else
-                if (Std.is(v, Date))
+                if (Std.isOfType(v, Date))
                 {
                     var date : Date = cast(v, Date);
                     return "'" + date.toString() + "'";
                 }
-            
+
             case ValueType.TInt:
                 return Std.string(v);
-            
+
             case ValueType.TFloat:
                 return Std.string(v);
-            
+
             case ValueType.TNull:
                 return "NULL";
-            
+
             case ValueType.TBool:
                 return cast(v, Bool) ? "1" : "0";
-            
+
             default:
         }
-        
+
         throw new Exception("Unsupported parameter type '" + Type.getClassName(Type.getClass(v)) + "'.");
     }
 
@@ -167,7 +167,7 @@ class DbDriver_mysql implements DbDriver
     {
 		return connection.lastInsertId();
     }
-	
+
 	public function getForeignKeys(table:String) : Array<DbTableForeignKey>
     {
         var sql = "
@@ -185,7 +185,7 @@ class DbDriver_mysql implements DbDriver
 ";
 		return Lambda.array(query(sql).results());
     }
-	
+
 	public function getUniques(table:String) : Array<Array<String>>
 	{
 		var rows : ResultSet = query("SHOW INDEX FROM `" + table + "` WHERE Non_unique=0 AND Key_name<>'PRIMARY'");

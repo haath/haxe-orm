@@ -13,12 +13,12 @@ using StringTools;
 class DbDriver_sqlite implements DbDriver
 {
 	var connection : Connection;
-	
+
 	public function new(dbparams:String) : Void
     {
 		connection = Sqlite.open(dbparams);
     }
-	
+
     public function query(sql:String) : ResultSet
     {
 		var r = null;
@@ -29,33 +29,33 @@ class DbDriver_sqlite implements DbDriver
 		}
 		return r;
     }
-	
+
 	public function close() : Void
 	{
 		try connection.close() catch (_:Dynamic) {}
 		connection = null;
 	}
-	
+
     public function getTables() : Array<String>
     {
         var rows = query("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
 		return Lambda.array(Lambda.map(rows.results(), function(row) return row.name));
     }
-	
+
 	public function isAutoincrement(table:String, field:String) : Bool
 	{
         var sql = query("SELECT sql FROM sqlite_master WHERE type='table' AND name='" + table + "'").getResult(0);
-		
+
 		var inner = ~/[(]((?:.|\r|\n)*)[)]/m;
 		if (!inner.match(sql)) return throw 'Unhandled syntax of "sqlite_master" for table "$table".';
-		
+
 		var statement = inner.matched(1).trim();
 		var fields = statement.split(",");
-		
+
 		var delim = '\\[\\]"\'`';
 		var named = fields.filter(function(fld)
 		{
-			fld = fld.trim().split(" ")[0];//first word in case of field declaration 
+			fld = fld.trim().split(" ")[0];//first word in case of field declaration
 			var reg 		= '[$delim]?$field[$delim]?';//maybe delimited
 			var fld_reg 	= new EReg(reg, "gm");//multiline
 			var matching 	= fld_reg.match(fld);
@@ -63,19 +63,19 @@ class DbDriver_sqlite implements DbDriver
 			var with_delim_word 	= fld.length == (field.length + 2); // in one of two ways
 			return matching && (without_delim_word 	|| with_delim_word);
 		});
-		
+
 		if (named.length != 1)
 		{
 			//trace('field "$field" table "$table" named "$named" fields $fields');
 			throw 'Unhandled syntax of "sqlite_master" for table "$table".';
-		}		
-		
+		}
+
 		var isAuto = named[0].split(" ").map(StringTools.trim).indexOf("AUTOINCREMENT") > -1;
-		
+
 		//trace('field $field isAuto $isAuto');
 		return isAuto;
 	}
-	
+
 	public function getFields(table:String) : Array<DbTableFieldData>
     {
         var rows = query("PRAGMA table_info(" + table + ")");
@@ -90,45 +90,45 @@ class DbDriver_sqlite implements DbDriver
 			}
 		).array();
     }
-	
+
     public function quote(v:Dynamic) : String
     {
 		switch (Type.typeof(v))
         {
             case ValueType.TClass(cls):
-                if (Std.is(v, String))
+                if (Std.isOfType(v, String))
                 {
 					return connection.quote(v);
                 }
                 else
-                if (Std.is(v, Date))
+                if (Std.isOfType(v, Date))
                 {
                     return "'" + v.toString() + "'";
                 }
-            
+
             case ValueType.TInt:
                 return Std.string(v);
-            
+
             case ValueType.TFloat:
                 return Std.string(v);
-            
+
             case ValueType.TNull:
                 return "NULL";
-            
+
             case ValueType.TBool:
                 return cast(v, Bool) ? "1" : "0";
-            
+
             default:
         }
-        
+
         throw new Exception("Unsupported parameter type '" + Type.getClassName(Type.getClass(v)) + "'.");
     }
-	
+
     public function lastInsertId() : Int
     {
 		return connection.lastInsertId();
     }
-	
+
 	public function getForeignKeys(table:String) : Array<DbTableForeignKey>
     {
         var r : Array<DbTableForeignKey> = [];
@@ -138,7 +138,7 @@ class DbDriver_sqlite implements DbDriver
 		{
 			if (reFK.match(s))
 			{
-				r.push({ 
+				r.push({
 					   key: reFK.matched(1)
 					 , parentTable: reFK.matched(2)
 					 , parentKey: reFK.matched(3)
@@ -147,7 +147,7 @@ class DbDriver_sqlite implements DbDriver
 		}
 		return r;
     }
-	
+
 	public function getUniques(table:String) : Array<Array<String>>
 	{
         var r = new Array<Array<String>>();
